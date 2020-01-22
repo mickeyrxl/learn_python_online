@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>online</title>
+
+    <link rel="stylesheet" href="py.css" type="text/css">
+    <script src="jquery-2.1.3.min.js"></script>
+    <script src="underscore.js"></script>
+    
+    <!-- 引入核心js和css -->
+    <script type="text/javascript" src="codemirror/lib/codemirror.js"></script>
+    <link rel="stylesheet" href="codemirror/lib/codemirror.css">
+    
+    <!-- 使用主题 -->
+    <link href="codemirror/theme/dracula.css" rel="stylesheet" type="text/css">
+    
+    <script src="codemirror/mode/python/python.js"></script>
+    
+    <!-- 支持搜索 -->
+    <script src="codemirror/addon/selection/active-line.js"></script>
+    <script src="codemirror/addon/search/search.js"></script>
+    <script src="codemirror/addon/search/searchcursor.js"></script>
+    <script src="codemirror/addon/search/jump-to-line.js"></script>
+
+    <!--支持代码折叠-->
+    <link rel="stylesheet" href="codemirror/addon/fold/foldgutter.css"/>
+    <script src="codemirror/addon/fold/foldcode.js"></script>
+    <script src="codemirror/addon/fold/foldgutter.js"></script>
+    <script src="codemirror/addon/fold/brace-fold.js"></script>
+    <script src="codemirror/addon/fold/indent-fold.js"></script>
+    <script src="codemirror/addon/fold/comment-fold.js"></script>
+    
+    <!--全屏模式-->
+    <link rel="stylesheet" href="codemirror/addon/display/fullscreen.css">
+    <script src="codemirror/addon/display/fullscreen.js"></script>
+    
+    <!--括号匹配-->
+    <script src="codemirror/addon/edit/matchbrackets.js"></script>
+    <script src="codemirror/addon/edit/closebrackets.js"></script>
+    
+    <!--自动补全-->
+    <link rel="stylesheet" href="codemirror/addon/hint/show-hint.css">
+    <script src="codemirror/addon/hint/show-hint.js"></script>
+    <script src="codemirror/addon/hint/anyword-hint.js"></script>
+
+    <body>
+        <textarea id="code" name="code">print('hi')</textarea>
+        <div>
+            <button type="button" class="uk-button uk-button-primary" onclick="execute_python('code',this)">运行</button>
+        </div>
+    </body>
+    <script type="text/javascript">
+        var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+            mode:"text/x-python",
+            lineNumbers: true,     // 显示行数
+            indentUnit: 4,         // 缩进单位为4
+            styleActiveLine: true, // 当前行背景高亮
+            matchBrackets: true,   // 括号匹配
+            autoCloseBrackets: true,//自动关闭括号
+            lineWrapping: true,    // 自动换行
+            theme: 'dracula',      // 使用模版
+            showHint:true,
+            extraKeys: {"Atl-Space":"autocomplete","Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }},
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        });
+        // 编辑器按键监听
+        editor.on("keypress", function() {
+            // 显示智能提示
+            editor.showHint(); // 注意，注释了CodeMirror库addon中show-hint.js第132行的代码（阻止了代码补全，同时提供智能提示）
+        });
+        function execute_python(tid, btn) {
+            var
+                code = editor.getValue(),
+                $button = $(btn),
+                $i = $button.find('i');
+            $button.attr('disabled', 'disabled');
+            $.post('https://local.liaoxuefeng.com:39093/run', $.param({
+                code: code
+            })).done(function (r) {
+                _mdShowCodeResult(btn, r.output);
+            }).fail(function (r) {
+                _mdShowCodeError(btn, '<p>无法连接到Python代码运行助手。请检查<a target="_blank" href="/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001432523496782e0946b0f454549c0888d05959b99860f000">本机的设置</a>。</p>', true);
+            }).always(function () {
+                $i.removeClass('uk-icon-spinner');
+                $i.removeClass('uk-icon-spin');
+                $button.removeAttr('disabled');
+            });
+        }
+        function _mdGetCode(tid) {
+            return editor.getValue();
+        }
+        function encodeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+        function _mdSetCodeResult(btn, result, isHtml, isError) {
+            var $r = $(btn).next('div.x-code-result');
+            if ($r.get(0) === undefined) {
+                $(btn).after('<div class="x-code-result x-code uk-alert"></div>');
+                $r = $(btn).next('div.x-code-result');
+            }
+            $r.removeClass('uk-alert-danger');
+            if (isError) {
+                $r.addClass('uk-alert-danger');
+            }
+            if (isHtml) {
+                $r.html(result);
+            } else {
+                var ss = result.split('\n');
+                var htm = '';
+                
+                var htm = _.map(ss, function (s) {
+                    return encodeHtml(s).replace(/ /g, '&nbsp;');
+                }).join('<br>');
+                
+                $r.html(htm);
+            }
+        }
+
+        function _mdShowCodeResult(btn, result, isHtml) {
+            _mdSetCodeResult(btn, result, isHtml);
+        }
+
+        function _mdShowCodeError(btn, result, isHtml) {
+            _mdSetCodeResult(btn, result, isHtml, true);
+        }
+
+    </script>
+</head>
+</html>
